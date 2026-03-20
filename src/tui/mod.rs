@@ -14,9 +14,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use self::app::{ActivePanel, App};
-use self::panels;
-use self::ui;
+use app::{ActivePanel, App};
 
 pub fn run() -> Result<()> {
     enable_raw_mode()?;
@@ -52,7 +50,6 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
     loop {
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
-        // Auto-clear message after 3 seconds
         if let Some(shown) = message_shown_at {
             if shown.elapsed() >= message_clear_rate {
                 app.message = None;

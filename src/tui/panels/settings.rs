@@ -11,10 +11,9 @@ use ratatui::{
 use crate::{
     cli::commands::{cmd_disable, cmd_enable, cmd_set},
     core::config::Config,
-    tui::app::{App, SettingsEdit},
+    tui::app::App,
 };
 
-// Fields: 0=WallpaperDir, 1=Volume, 2=Speed, 3=LoopVideo, 4=Autostart
 const FIELD_COUNT: usize = 5;
 
 pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
@@ -26,31 +25,11 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
     let se = &app.settings_edit;
 
     let fields: Vec<(&str, String, bool)> = vec![
-        (
-            "Wallpaper Directory",
-            se.wallpaper_dir.clone(),
-            true,  // text-editable
-        ),
-        (
-            "Volume (0-100)",
-            se.volume.clone(),
-            true,
-        ),
-        (
-            "Speed (e.g. 1.0)",
-            se.speed.clone(),
-            true,
-        ),
-        (
-            "Loop Video",
-            if se.loop_video { "on".to_string() } else { "off".to_string() },
-            false, // toggle
-        ),
-        (
-            "Autostart on login",
-            if se.autostart { "enabled".to_string() } else { "disabled".to_string() },
-            false, // toggle
-        ),
+        ("Wallpaper Directory", se.wallpaper_dir.clone(), true),
+        ("Volume (0-100)", se.volume.clone(), true),
+        ("Speed (e.g. 1.0)", se.speed.clone(), true),
+        ("Loop Video", if se.loop_video { "on".to_string() } else { "off".to_string() }, false),
+        ("Autostart on login", if se.autostart { "enabled".to_string() } else { "disabled".to_string() }, false),
     ];
 
     let items: Vec<ListItem> = fields
@@ -72,25 +51,15 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
                 Style::default().fg(Color::White)
             };
 
+            let is_on = value == "on" || value == "enabled";
             let value_style = if is_editing {
                 Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)
-            } else if is_selected && !text_editable {
-                // Toggles: green=on, red=off
-                let is_on = value == "on" || value == "enabled";
-                if is_on {
-                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
-                } else {
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
-                }
+            } else if !text_editable {
+                if is_on { Style::default().fg(Color::Green) } else { Style::default().fg(Color::Red) }
             } else if is_selected {
                 Style::default().fg(Color::Cyan)
             } else {
-                let is_on = value == "on" || value == "enabled";
-                if !text_editable {
-                    if is_on { Style::default().fg(Color::Green) } else { Style::default().fg(Color::Red) }
-                } else {
-                    Style::default().fg(Color::DarkGray)
-                }
+                Style::default().fg(Color::DarkGray)
             };
 
             ListItem::new(Line::from(vec![
@@ -132,26 +101,26 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
 }
 
 pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
-    let se = &mut app.settings_edit;
+    let field_count = FIELD_COUNT;
 
-    if se.editing {
+    if app.settings_edit.editing {
         match key.code {
             KeyCode::Esc | KeyCode::Enter => {
-                se.editing = false;
+                app.settings_edit.editing = false;
             }
             KeyCode::Backspace => {
-                match se.active_field {
-                    0 => { se.wallpaper_dir.pop(); }
-                    1 => { se.volume.pop(); }
-                    2 => { se.speed.pop(); }
+                match app.settings_edit.active_field {
+                    0 => { app.settings_edit.wallpaper_dir.pop(); }
+                    1 => { app.settings_edit.volume.pop(); }
+                    2 => { app.settings_edit.speed.pop(); }
                     _ => {}
                 }
             }
             KeyCode::Char(c) => {
-                match se.active_field {
-                    0 => se.wallpaper_dir.push(c),
-                    1 => se.volume.push(c),
-                    2 => se.speed.push(c),
+                match app.settings_edit.active_field {
+                    0 => app.settings_edit.wallpaper_dir.push(c),
+                    1 => app.settings_edit.volume.push(c),
+                    2 => app.settings_edit.speed.push(c),
                     _ => {}
                 }
             }
@@ -162,28 +131,27 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
 
     match key.code {
         KeyCode::Up | KeyCode::Char('k') => {
-            if se.active_field > 0 {
-                se.active_field -= 1;
+            if app.settings_edit.active_field > 0 {
+                app.settings_edit.active_field -= 1;
             }
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            if se.active_field < FIELD_COUNT - 1 {
-                se.active_field += 1;
+            if app.settings_edit.active_field < field_count - 1 {
+                app.settings_edit.active_field += 1;
             }
         }
         KeyCode::Char('e') | KeyCode::Enter => {
-            match se.active_field {
-                // Text fields
-                0 | 1 | 2 => { se.editing = true; }
-                // Loop video toggle
-                3 => { se.loop_video = !se.loop_video; }
-                // Autostart toggle
+            match app.settings_edit.active_field {
+                0 | 1 | 2 => { app.settings_edit.editing = true; }
+                3 => {
+                    app.settings_edit.loop_video = !app.settings_edit.loop_video;
+                }
                 4 => {
-                    let enabling = !se.autostart;
+                    let enabling = !app.settings_edit.autostart;
                     if enabling {
                         match cmd_enable() {
                             Ok(_) => {
-                                se.autostart = true;
+                                app.settings_edit.autostart = true;
                                 app.set_message("Autostart enabled", false);
                             }
                             Err(e) => app.set_message(format!("Autostart error: {}", e), true),
@@ -191,7 +159,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
                     } else {
                         match cmd_disable() {
                             Ok(_) => {
-                                se.autostart = false;
+                                app.settings_edit.autostart = false;
                                 app.set_message("Autostart disabled", false);
                             }
                             Err(e) => app.set_message(format!("Autostart error: {}", e), true),
@@ -214,26 +182,20 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
 }
 
 fn save_and_apply(app: &mut App) -> Result<String> {
-    let se = &app.settings_edit;
-
-    let volume: u8 = se.volume.parse().map_err(|_| {
-        anyhow::anyhow!("Invalid volume '{}' — must be 0-100", se.volume)
+    let volume: u8 = app.settings_edit.volume.parse().map_err(|_| {
+        anyhow::anyhow!("Invalid volume '{}' — must be 0-100", app.settings_edit.volume)
     })?;
-    let speed: f32 = se.speed.parse().map_err(|_| {
-        anyhow::anyhow!("Invalid speed '{}' — must be a number like 1.0", se.speed)
+    let speed: f32 = app.settings_edit.speed.parse().map_err(|_| {
+        anyhow::anyhow!("Invalid speed '{}' — must be a number like 1.0", app.settings_edit.speed)
     })?;
-    if volume > 100 {
-        anyhow::bail!("Volume must be between 0 and 100");
-    }
-    if speed <= 0.0 {
-        anyhow::bail!("Speed must be greater than 0");
-    }
+    if volume > 100 { anyhow::bail!("Volume must be between 0 and 100"); }
+    if speed <= 0.0 { anyhow::bail!("Speed must be greater than 0"); }
 
     let new_config = Config {
         schema_version: app.config.schema_version,
-        wallpaper_dir: se.wallpaper_dir.clone(),
+        wallpaper_dir: app.settings_edit.wallpaper_dir.clone(),
         mpvpaper_flags: String::new(),
-        loop_video: se.loop_video,
+        loop_video: app.settings_edit.loop_video,
         volume,
         speed,
     };
@@ -243,7 +205,6 @@ fn save_and_apply(app: &mut App) -> Result<String> {
     app.browser_files = App::scan_files(&app.config.wallpaper_dir);
     app.browser_selected = 0;
 
-    // Re-apply wallpaper immediately on every active monitor with new config
     let active_wallpapers: Vec<(String, String)> = app
         .state
         .monitors
@@ -254,9 +215,7 @@ fn save_and_apply(app: &mut App) -> Result<String> {
 
     let mut applied = 0;
     for (mon, path) in active_wallpapers {
-        if let Err(_) = cmd_set(&path, Some(&mon)) {
-            // Non-fatal: wallpaper may have been manually stopped
-        } else {
+        if cmd_set(&path, Some(&mon)).is_ok() {
             applied += 1;
         }
     }
