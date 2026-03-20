@@ -1,3 +1,5 @@
+pub mod commands;
+
 use clap::{Parser, Subcommand};
 
 #[derive(Parser, Debug)]

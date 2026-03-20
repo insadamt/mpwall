@@ -10,7 +10,7 @@ use super::app::{ActivePanel, App};
 use super::panels;
 
 pub fn draw(f: &mut Frame, app: &mut App) {
-    let size = f.area();
+    let size = f.size();
 
     // Root layout: tab bar (3) + content (fill) + status bar (1)
     let root = Layout::default()
@@ -65,10 +65,7 @@ fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
             msg.clone(),
             Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
         ),
-        Some(msg) => (
-            msg.clone(),
-            Style::default().fg(Color::Green),
-        ),
+        Some(msg) => (msg.clone(), Style::default().fg(Color::Green)),
         None => (
             " Tab: switch panel  |  q: quit  |  ?: help".to_string(),
             Style::default().fg(Color::DarkGray),
@@ -89,7 +86,10 @@ fn draw_help_overlay(f: &mut Frame, area: Rect) {
     f.render_widget(Clear, popup);
 
     let help_text = vec![
-        Line::from(vec![Span::styled(" Keybindings", Style::default().add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled(
+            " Keybindings",
+            Style::default().add_modifier(Modifier::BOLD),
+        )]),
         Line::from(""),
         Line::from(" Tab / Shift+Tab   Switch panel"),
         Line::from(" ↑ ↓               Navigate list"),
@@ -104,7 +104,10 @@ fn draw_help_overlay(f: &mut Frame, area: Rect) {
         Line::from(" ?                 Toggle this help"),
         Line::from(" q                 Quit"),
         Line::from(""),
-        Line::from(vec![Span::styled(" Press ? or Esc to close", Style::default().fg(Color::DarkGray))]),
+        Line::from(vec![Span::styled(
+            " Press ? or Esc to close",
+            Style::default().fg(Color::DarkGray),
+        )]),
     ];
 
     let block = Block::default()
@@ -116,7 +119,6 @@ fn draw_help_overlay(f: &mut Frame, area: Rect) {
     f.render_widget(para, popup);
 }
 
-/// Helper: centered rect within a parent
 #[allow(dead_code)]
 pub fn centered_rect(percent_x: u16, percent_y: u16, r: Rect) -> Rect {
     let layout = Layout::default()
