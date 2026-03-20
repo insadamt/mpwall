@@ -28,7 +28,7 @@ impl Default for Config {
             loop_video: true,
             volume: 0,
             speed: 1.0,
-            theme: Theme::default(),
+            theme: Theme::default(), // LamessUi
         }
     }
 }

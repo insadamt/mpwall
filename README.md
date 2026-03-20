@@ -1,51 +1,74 @@
+<div align="center">
+
+<img src="public/images/mpwall Logo Transparent.png" alt="mpwall logo" width="180"/>
+
 # mpwall
 
-> A professional hybrid CLI/TUI live video wallpaper manager for Hyprland/Wayland.
+**A terminal-native animated wallpaper manager for Hyprland.**  
+Built under the [Lamess UI](https://github.com/insadamt) design system.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/built%20with-Rust-orange?logo=rust)](https://www.rust-lang.org/)
-[![AUR](https://img.shields.io/badge/AUR-mpwall-1793d1?logo=arch-linux)](https://aur.archlinux.org/packages/mpwall)
+<img src="public/images/Lamess Symbol Logo Monochrom White Transparent.png" alt="Lamess UI" width="48"/>
 
-mpwall replaces all manual `mpvpaper` scripting with a single, reliable binary.
-Set video wallpapers from the CLI in one command, or use the full TUI to browse your library, manage playlists, and configure everything interactively.
+---
+
+</div>
+
+## Overview
+
+`mpwall` is a lightweight CLI + TUI tool for setting and managing video wallpapers on Hyprland using `mpvpaper`. It features a full terminal UI with a file browser, wallpaper library, status monitor, and settings panel — all themed with the Lamess UI design language.
 
 ## Features
 
-- `mpwall set video.mp4` — instant wallpaper, zero setup
-- Full keyboard-driven TUI — browser, status, library, settings
-- Multi-monitor support — independent wallpaper per screen
-- Hyprland autostart integration — safe, delimited config edits
-- Single Rust binary — no runtime, no shell dependency
-- AUR-native — `paru -S mpwall`
+- **Browser panel** — browse your wallpaper directory, filter by name, set wallpaper with Enter
+- **Library panel** — save and re-apply favourite wallpapers
+- **Status panel** — monitor active wallpaper process per display
+- **Settings panel** — configure directory, volume, speed, loop, autostart, and UI theme
+- **3 themes** — Lamess UI (default), Cyan, Monochrome
+- **Autostart** — writes `exec-once` to `hyprland.conf` automatically
 
-## Install
+## Installation
+
+### Prerequisites
+
+- [Rust](https://rustup.rs/) 1.70+
+- [mpvpaper](https://github.com/GhostNaN/mpvpaper)
+- Hyprland
+
+### Build from source
 
 ```bash
-paru -S mpwall
-```
-
-Or from source:
-
-```bash
-git clone https://github.com/insadamt/mpwall.git
+git clone https://github.com/insadamt/mpwall
 cd mpwall
 cargo build --release
-sudo install -Dm755 target/release/mpwall /usr/bin/mpwall
+sudo cp target/release/mpwall /usr/local/bin/
 ```
-
-**Dependencies:** `mpvpaper`, `hyprland`, Nerd Fonts (for TUI icons)
 
 ## Usage
 
 ```bash
-mpwall set ~/Videos/wallpapers/city.mp4    # set wallpaper
-mpwall set city.mp4 --monitor DP-1        # target specific monitor
-mpwall stop                                # stop wallpaper
-mpwall enable                              # add to Hyprland autostart
-mpwall disable                             # remove from autostart
-mpwall status                              # check what’s running
-mpwall list                                # list available wallpapers
-mpwall                                     # open TUI
+# Launch the TUI
+mpwall
+
+# Set a wallpaper directly
+mpwall set ~/Videos/wallpapers/video.mp4
+
+# Set on a specific monitor
+mpwall set ~/Videos/wallpapers/video.mp4 --monitor eDP-1
+
+# Stop wallpaper
+mpwall stop
+
+# Enable autostart (writes to hyprland.conf)
+mpwall enable
+
+# Disable autostart
+mpwall disable
+
+# Show status
+mpwall status
+
+# List wallpapers in configured directory
+mpwall list
 ```
 
 ## TUI Keybindings
@@ -53,20 +76,42 @@ mpwall                                     # open TUI
 | Key | Action |
 |-----|--------|
 | `Tab` / `Shift+Tab` | Switch panel |
-| `↑` `↓` / `j` `k` | Navigate |
-| `Enter` | Set wallpaper |
-| `/` | Filter (Browser) |
+| `↑` / `↓` or `j` / `k` | Navigate list |
+| `Enter` | Set wallpaper / confirm / toggle |
+| `/` | Filter files (Browser) |
+| `Esc` | Cancel filter / close help |
 | `a` | Add to Library |
 | `d` | Remove from Library |
-| `e` | Edit field (Settings) |
 | `s` | Save settings |
-| `?` | Help overlay |
+| `?` | Toggle help overlay |
 | `q` | Quit |
 
-## Documentation
+## Configuration
 
-Full documentation is in [`documentation/`](documentation/README.md).
+Config is stored at `~/.config/mpwall/config.toml`:
 
-## License
+```toml
+schema_version = 1
+wallpaper_dir = "/home/user/Videos/wallpapers"
+mpvpaper_flags = ""
+loop_video = true
+volume = 0
+speed = 1.0
+theme = "lamess_ui"
+```
 
-MIT — see [LICENSE](LICENSE)
+## Themes
+
+| Theme | Description |
+|-------|-------------|
+| `lamess_ui` | Signal Yellow on pure black — Lamess UI brand (default) |
+| `cyan` | Classic cyan terminal |
+| `monochrome` | Pure white/gray, no color |
+
+Cycle themes in the Settings panel → **Theme** field → `Enter`.
+
+---
+
+<div align="center">
+<sub>Part of the Lamess UI ecosystem — precise, dark, data-driven.</sub>
+</div>
