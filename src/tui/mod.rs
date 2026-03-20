@@ -1,3 +1,7 @@
+pub mod app;
+pub mod panels;
+pub mod ui;
+
 use anyhow::Result;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyModifiers},
@@ -10,9 +14,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use super::app::{ActivePanel, App};
-use super::panels;
-use super::ui;
+use self::app::{ActivePanel, App};
+use self::panels;
+use self::ui;
 
 pub fn run() -> Result<()> {
     enable_raw_mode()?;
@@ -55,7 +59,6 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
                 message_shown_at = None;
             }
         }
-        // Track when a new message appears
         if app.message.is_some() && message_shown_at.is_none() {
             message_shown_at = Some(Instant::now());
         }
@@ -66,7 +69,6 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
 
         if event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
-                // Global keys (processed regardless of panel)
                 match key.code {
                     KeyCode::Char('q') => return Ok(()),
                     KeyCode::Char('c')
@@ -88,7 +90,6 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
                         app.prev_panel();
                     }
                     _ => {
-                        // Delegate to active panel handler
                         let result = match app.active_panel {
                             ActivePanel::Browser => panels::browser::handle_key(&mut app, key),
                             ActivePanel::Status => panels::status::handle_key(&mut app, key),
@@ -101,7 +102,6 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
                         }
                     }
                 }
-                // Reset message timer on new message
                 if app.message.is_some() && message_shown_at.is_none() {
                     message_shown_at = Some(Instant::now());
                 }
@@ -112,7 +112,6 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> 
             last_tick = Instant::now();
         }
 
-        // Periodic state refresh
         if last_state_refresh.elapsed() >= state_refresh_rate {
             let _ = app.refresh_state();
             last_state_refresh = Instant::now();
