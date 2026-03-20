@@ -45,7 +45,6 @@ impl ActivePanel {
     }
 }
 
-/// Video file entry in the browser
 #[derive(Debug, Clone)]
 pub struct VideoEntry {
     pub path: PathBuf,
@@ -53,54 +52,49 @@ pub struct VideoEntry {
     pub size: u64,
 }
 
-/// Editable settings fields
 #[derive(Debug, Clone)]
 pub struct SettingsEdit {
     pub wallpaper_dir: String,
-    pub mpvpaper_flags: String,
     pub volume: String,
     pub speed: String,
+    pub loop_video: bool,
+    pub autostart: bool,
     pub active_field: usize,
     pub editing: bool,
 }
 
 impl SettingsEdit {
-    pub fn from_config(config: &Config) -> Self {
+    pub fn from_config(config: &Config, autostart: bool) -> Self {
         Self {
             wallpaper_dir: config.wallpaper_dir.clone(),
-            mpvpaper_flags: config.mpvpaper_flags.clone(),
             volume: config.volume.to_string(),
             speed: config.speed.to_string(),
+            loop_video: config.loop_video,
+            autostart,
             active_field: 0,
             editing: false,
         }
     }
 }
 
-/// Central application state for the TUI
 pub struct App {
     pub active_panel: ActivePanel,
     pub show_help: bool,
 
-    // Browser panel
     pub browser_files: Vec<VideoEntry>,
     pub browser_selected: usize,
     pub browser_filter: String,
     pub browser_filter_mode: bool,
 
-    // Status panel
     pub state: State,
     pub monitors: Vec<Monitor>,
 
-    // Library panel
     pub library: Library,
     pub library_selected: usize,
 
-    // Settings panel
     pub config: Config,
     pub settings_edit: SettingsEdit,
 
-    // Feedback message (shown in status bar)
     pub message: Option<String>,
     pub message_is_error: bool,
 }
@@ -113,7 +107,8 @@ impl App {
         let state = State::load()?;
         let library = Library::load()?;
         let monitors = list_monitors().unwrap_or_default();
-        let settings_edit = SettingsEdit::from_config(&config);
+        let autostart = state.monitors.values().any(|e| e.autostart);
+        let settings_edit = SettingsEdit::from_config(&config, autostart);
         let browser_files = Self::scan_files(&config.wallpaper_dir);
 
         Ok(Self {
@@ -134,10 +129,8 @@ impl App {
         })
     }
 
-    /// Refresh state from disk and verify PID liveness
     pub fn refresh_state(&mut self) -> Result<()> {
         self.state = State::load()?;
-        // Mark stale PIDs
         for entry in self.state.monitors.values_mut() {
             if let Some(pid) = entry.pid {
                 if !is_pid_alive(pid) {
@@ -146,6 +139,8 @@ impl App {
             }
         }
         self.monitors = list_monitors().unwrap_or_default();
+        // Sync autostart toggle
+        self.settings_edit.autostart = self.state.monitors.values().any(|e| e.autostart);
         Ok(())
     }
 
@@ -172,11 +167,11 @@ impl App {
         self.message_is_error = is_error;
     }
 
+    #[allow(dead_code)]
     pub fn clear_message(&mut self) {
         self.message = None;
     }
 
-    /// Scan a directory for video files
     pub fn scan_files(dir: &str) -> Vec<VideoEntry> {
         let path = std::path::Path::new(dir);
         if !path.exists() {
@@ -204,7 +199,6 @@ impl App {
         entries
     }
 
-    /// Get the filtered browser list based on current filter string
     pub fn filtered_files(&self) -> Vec<&VideoEntry> {
         if self.browser_filter.is_empty() {
             self.browser_files.iter().collect()

@@ -9,16 +9,13 @@ use ratatui::{
 };
 
 use crate::{
+    cli::commands::{cmd_disable, cmd_enable, cmd_set},
     core::config::Config,
     tui::app::{App, SettingsEdit},
 };
 
-const FIELD_LABELS: &[&str] = &[
-    "Wallpaper Directory",
-    "mpvpaper Flags",
-    "Volume (0-100)",
-    "Speed (e.g. 1.0)",
-];
+// Fields: 0=WallpaperDir, 1=Volume, 2=Speed, 3=LoopVideo, 4=Autostart
+const FIELD_COUNT: usize = 5;
 
 pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
@@ -27,36 +24,75 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
         .split(area);
 
     let se = &app.settings_edit;
-    let values = [
-        se.wallpaper_dir.as_str(),
-        se.mpvpaper_flags.as_str(),
-        se.volume.as_str(),
-        se.speed.as_str(),
+
+    let fields: Vec<(&str, String, bool)> = vec![
+        (
+            "Wallpaper Directory",
+            se.wallpaper_dir.clone(),
+            true,  // text-editable
+        ),
+        (
+            "Volume (0-100)",
+            se.volume.clone(),
+            true,
+        ),
+        (
+            "Speed (e.g. 1.0)",
+            se.speed.clone(),
+            true,
+        ),
+        (
+            "Loop Video",
+            if se.loop_video { "on".to_string() } else { "off".to_string() },
+            false, // toggle
+        ),
+        (
+            "Autostart on login",
+            if se.autostart { "enabled".to_string() } else { "disabled".to_string() },
+            false, // toggle
+        ),
     ];
 
-    let items: Vec<ListItem> = FIELD_LABELS
+    let items: Vec<ListItem> = fields
         .iter()
         .enumerate()
-        .map(|(i, label)| {
+        .map(|(i, (label, value, text_editable))| {
             let is_selected = i == se.active_field;
-            let is_editing = is_selected && se.editing;
+            let is_editing = is_selected && se.editing && *text_editable;
+
             let value_display = if is_editing {
-                format!("{}_", values[i])
+                format!("{}_", value)
             } else {
-                values[i].to_string()
+                value.clone()
             };
+
             let label_style = if is_selected {
                 Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::White)
             };
+
             let value_style = if is_editing {
                 Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)
+            } else if is_selected && !text_editable {
+                // Toggles: green=on, red=off
+                let is_on = value == "on" || value == "enabled";
+                if is_on {
+                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+                }
             } else if is_selected {
                 Style::default().fg(Color::Cyan)
             } else {
-                Style::default().fg(Color::DarkGray)
+                let is_on = value == "on" || value == "enabled";
+                if !text_editable {
+                    if is_on { Style::default().fg(Color::Green) } else { Style::default().fg(Color::Red) }
+                } else {
+                    Style::default().fg(Color::DarkGray)
+                }
             };
+
             ListItem::new(Line::from(vec![
                 Span::styled(format!("  {:<24} ", label), label_style),
                 Span::styled(value_display, value_style),
@@ -78,7 +114,6 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
 
     f.render_stateful_widget(list, chunks[0], &mut list_state);
 
-    // Info bar
     let config_path = crate::core::config::config_path();
     let hints = vec![
         Line::from(vec![
@@ -88,7 +123,7 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
                 Style::default().fg(Color::DarkGray),
             ),
         ]),
-        Line::from(" ↑↓: navigate  |  e: edit field  |  Enter/Esc: confirm  |  s: save"),
+        Line::from(" ↑↓/jk: navigate  |  Enter: edit/toggle  |  s: save & apply"),
     ];
     let info = Paragraph::new(hints)
         .style(Style::default().fg(Color::DarkGray))
@@ -105,12 +140,20 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
                 se.editing = false;
             }
             KeyCode::Backspace => {
-                let field = active_field_mut(se);
-                field.pop();
+                match se.active_field {
+                    0 => { se.wallpaper_dir.pop(); }
+                    1 => { se.volume.pop(); }
+                    2 => { se.speed.pop(); }
+                    _ => {}
+                }
             }
             KeyCode::Char(c) => {
-                let field = active_field_mut(se);
-                field.push(c);
+                match se.active_field {
+                    0 => se.wallpaper_dir.push(c),
+                    1 => se.volume.push(c),
+                    2 => se.speed.push(c),
+                    _ => {}
+                }
             }
             _ => {}
         }
@@ -124,16 +167,44 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
             }
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            if se.active_field < FIELD_LABELS.len() - 1 {
+            if se.active_field < FIELD_COUNT - 1 {
                 se.active_field += 1;
             }
         }
         KeyCode::Char('e') | KeyCode::Enter => {
-            se.editing = true;
+            match se.active_field {
+                // Text fields
+                0 | 1 | 2 => { se.editing = true; }
+                // Loop video toggle
+                3 => { se.loop_video = !se.loop_video; }
+                // Autostart toggle
+                4 => {
+                    let enabling = !se.autostart;
+                    if enabling {
+                        match cmd_enable() {
+                            Ok(_) => {
+                                se.autostart = true;
+                                app.set_message("Autostart enabled", false);
+                            }
+                            Err(e) => app.set_message(format!("Autostart error: {}", e), true),
+                        }
+                    } else {
+                        match cmd_disable() {
+                            Ok(_) => {
+                                se.autostart = false;
+                                app.set_message("Autostart disabled", false);
+                            }
+                            Err(e) => app.set_message(format!("Autostart error: {}", e), true),
+                        }
+                    }
+                    let _ = app.refresh_state();
+                }
+                _ => {}
+            }
         }
         KeyCode::Char('s') => {
-            match save_settings(app) {
-                Ok(_) => app.set_message("Settings saved", false),
+            match save_and_apply(app) {
+                Ok(msg) => app.set_message(msg, false),
                 Err(e) => app.set_message(format!("Error: {}", e), true),
             }
         }
@@ -142,46 +213,58 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
     Ok(())
 }
 
-fn active_field_mut(se: &mut SettingsEdit) -> &mut String {
-    match se.active_field {
-        0 => &mut se.wallpaper_dir,
-        1 => &mut se.mpvpaper_flags,
-        2 => &mut se.volume,
-        3 => &mut se.speed,
-        _ => &mut se.wallpaper_dir,
-    }
-}
-
-fn save_settings(app: &mut App) -> Result<()> {
+fn save_and_apply(app: &mut App) -> Result<String> {
     let se = &app.settings_edit;
 
     let volume: u8 = se.volume.parse().map_err(|_| {
-        anyhow::anyhow!("Invalid volume: '{}'. Must be a number between 0 and 100.", se.volume)
+        anyhow::anyhow!("Invalid volume '{}' — must be 0-100", se.volume)
     })?;
     let speed: f32 = se.speed.parse().map_err(|_| {
-        anyhow::anyhow!("Invalid speed: '{}'. Must be a decimal number like 1.0.", se.speed)
+        anyhow::anyhow!("Invalid speed '{}' — must be a number like 1.0", se.speed)
     })?;
-
     if volume > 100 {
-        anyhow::bail!("Volume must be between 0 and 100.");
+        anyhow::bail!("Volume must be between 0 and 100");
     }
     if speed <= 0.0 {
-        anyhow::bail!("Speed must be greater than 0.");
+        anyhow::bail!("Speed must be greater than 0");
     }
 
     let new_config = Config {
         schema_version: app.config.schema_version,
         wallpaper_dir: se.wallpaper_dir.clone(),
-        mpvpaper_flags: se.mpvpaper_flags.clone(),
-        loop_video: app.config.loop_video,
+        mpvpaper_flags: String::new(),
+        loop_video: se.loop_video,
         volume,
         speed,
     };
 
     new_config.save()?;
     app.config = new_config;
-    // Refresh browser with new directory
     app.browser_files = App::scan_files(&app.config.wallpaper_dir);
     app.browser_selected = 0;
-    Ok(())
+
+    // Re-apply wallpaper immediately on every active monitor with new config
+    let active_wallpapers: Vec<(String, String)> = app
+        .state
+        .monitors
+        .iter()
+        .filter(|(_, e)| !e.wallpaper_path.is_empty())
+        .map(|(mon, e)| (mon.clone(), e.wallpaper_path.clone()))
+        .collect();
+
+    let mut applied = 0;
+    for (mon, path) in active_wallpapers {
+        if let Err(_) = cmd_set(&path, Some(&mon)) {
+            // Non-fatal: wallpaper may have been manually stopped
+        } else {
+            applied += 1;
+        }
+    }
+    app.refresh_state()?;
+
+    if applied > 0 {
+        Ok(format!("Settings saved & applied to {} monitor(s)", applied))
+    } else {
+        Ok("Settings saved".to_string())
+    }
 }

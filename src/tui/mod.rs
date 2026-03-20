@@ -10,15 +10,10 @@ use std::{
     time::{Duration, Instant},
 };
 
-pub mod app;
-pub mod panels;
-pub mod ui;
+use super::app::{ActivePanel, App};
+use super::panels;
+use super::ui;
 
-use app::{App, ActivePanel};
-
-const POLL_INTERVAL: Duration = Duration::from_secs(2);
-
-/// Entry point for the TUI. Sets up the terminal, runs the event loop, and restores the terminal on exit.
 pub fn run() -> Result<()> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -28,7 +23,6 @@ pub fn run() -> Result<()> {
 
     let result = run_app(&mut terminal);
 
-    // Always restore terminal even on error
     disable_raw_mode()?;
     execute!(
         terminal.backend_mut(),
@@ -42,56 +36,86 @@ pub fn run() -> Result<()> {
 
 fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>) -> Result<()> {
     let mut app = App::new()?;
-    let mut last_poll = Instant::now();
+
+    let tick_rate = Duration::from_millis(250);
+    let state_refresh_rate = Duration::from_secs(2);
+    let message_clear_rate = Duration::from_secs(3);
+
+    let mut last_tick = Instant::now();
+    let mut last_state_refresh = Instant::now();
+    let mut message_shown_at: Option<Instant> = None;
 
     loop {
         terminal.draw(|f| ui::draw(f, &mut app))?;
 
-        // Poll state every 2 seconds
-        if last_poll.elapsed() >= POLL_INTERVAL {
-            app.refresh_state()?;
-            last_poll = Instant::now();
+        // Auto-clear message after 3 seconds
+        if let Some(shown) = message_shown_at {
+            if shown.elapsed() >= message_clear_rate {
+                app.message = None;
+                message_shown_at = None;
+            }
+        }
+        // Track when a new message appears
+        if app.message.is_some() && message_shown_at.is_none() {
+            message_shown_at = Some(Instant::now());
         }
 
-        // Event timeout so polling still fires
-        if event::poll(Duration::from_millis(250))? {
+        let timeout = tick_rate
+            .checked_sub(last_tick.elapsed())
+            .unwrap_or_default();
+
+        if event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
-                // Global quit
-                if key.code == KeyCode::Char('q') && key.modifiers == KeyModifiers::NONE {
-                    break;
-                }
-                // Ctrl-C also quits
-                if key.code == KeyCode::Char('c') && key.modifiers == KeyModifiers::CONTROL {
-                    break;
-                }
-                // Tab cycles panels
-                if key.code == KeyCode::Tab {
-                    app.next_panel();
-                    continue;
-                }
-                // BackTab (Shift+Tab) goes back
-                if key.code == KeyCode::BackTab {
-                    app.prev_panel();
-                    continue;
-                }
-                // Help overlay toggle
-                if key.code == KeyCode::Char('?') {
-                    app.show_help = !app.show_help;
-                    continue;
-                }
-                // Delegate key to active panel
-                if !app.show_help {
-                    match app.active_panel {
-                        ActivePanel::Browser => panels::browser::handle_key(&mut app, key)?,
-                        ActivePanel::Status => panels::status::handle_key(&mut app, key)?,
-                        ActivePanel::Library => panels::library::handle_key(&mut app, key)?,
-                        ActivePanel::Settings => panels::settings::handle_key(&mut app, key)?,
+                // Global keys (processed regardless of panel)
+                match key.code {
+                    KeyCode::Char('q') => return Ok(()),
+                    KeyCode::Char('c')
+                        if key.modifiers.contains(KeyModifiers::CONTROL) =>
+                    {
+                        return Ok(());
                     }
-                } else if key.code == KeyCode::Esc || key.code == KeyCode::Char('?') {
-                    app.show_help = false;
+                    KeyCode::Char('?') => {
+                        app.show_help = !app.show_help;
+                    }
+                    KeyCode::Esc if app.show_help => {
+                        app.show_help = false;
+                    }
+                    KeyCode::Tab => {
+                        app.next_panel();
+                        app.show_help = false;
+                    }
+                    KeyCode::BackTab => {
+                        app.prev_panel();
+                    }
+                    _ => {
+                        // Delegate to active panel handler
+                        let result = match app.active_panel {
+                            ActivePanel::Browser => panels::browser::handle_key(&mut app, key),
+                            ActivePanel::Status => panels::status::handle_key(&mut app, key),
+                            ActivePanel::Library => panels::library::handle_key(&mut app, key),
+                            ActivePanel::Settings => panels::settings::handle_key(&mut app, key),
+                        };
+                        if let Err(e) = result {
+                            app.set_message(format!("Error: {}", e), true);
+                            message_shown_at = Some(Instant::now());
+                        }
+                    }
+                }
+                // Reset message timer on new message
+                if app.message.is_some() && message_shown_at.is_none() {
+                    message_shown_at = Some(Instant::now());
                 }
             }
         }
+
+        if last_tick.elapsed() >= tick_rate {
+            last_tick = Instant::now();
+        }
+
+        // Periodic state refresh
+        if last_state_refresh.elapsed() >= state_refresh_rate {
+            let _ = app.refresh_state();
+            last_state_refresh = Instant::now();
+        }
     }
-    Ok(())
 }
