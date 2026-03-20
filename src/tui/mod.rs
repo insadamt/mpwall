@@ -1,5 +1,6 @@
 pub mod app;
 pub mod panels;
+pub mod theme;
 pub mod ui;
 
 use anyhow::Result;

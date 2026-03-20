@@ -12,11 +12,15 @@ use crate::{
     cli::commands::{cmd_disable, cmd_enable, cmd_set},
     core::config::Config,
     tui::app::App,
+    tui::theme::Theme,
 };
 
-const FIELD_COUNT: usize = 5;
+// Fields: 0=WallpaperDir, 1=Volume, 2=Speed, 3=LoopVideo, 4=Autostart, 5=Theme
+const FIELD_COUNT: usize = 6;
 
 pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
+    let c = app.colors();
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Min(0), Constraint::Length(3)])
@@ -30,6 +34,7 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
         ("Speed (e.g. 1.0)", se.speed.clone(), true),
         ("Loop Video", if se.loop_video { "on".to_string() } else { "off".to_string() }, false),
         ("Autostart on login", if se.autostart { "enabled".to_string() } else { "disabled".to_string() }, false),
+        ("Theme", app.theme.label().to_string(), false),
     ];
 
     let items: Vec<ListItem> = fields
@@ -41,20 +46,21 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
             let value_display = if is_editing { format!("{}_", value) } else { value.clone() };
 
             let label_style = if is_selected {
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
+                Style::default().fg(c.title).add_modifier(Modifier::BOLD)
             } else {
-                Style::default().fg(Color::White)
+                Style::default().fg(c.text_primary)
             };
 
             let is_on = value == "on" || value == "enabled";
             let value_style = if is_editing {
                 Style::default().fg(Color::Yellow).add_modifier(Modifier::UNDERLINED)
-            } else if !text_editable {
-                if is_on { Style::default().fg(Color::Green) } else { Style::default().fg(Color::Red) }
+            } else if !text_editable && (i == 3 || i == 4) {
+                // toggle fields: green/red
+                if is_on { Style::default().fg(c.success) } else { Style::default().fg(c.danger) }
             } else if is_selected {
-                Style::default().fg(Color::Cyan)
+                Style::default().fg(c.title)
             } else {
-                Style::default().fg(Color::DarkGray)
+                Style::default().fg(c.text_muted)
             };
 
             ListItem::new(Line::from(vec![
@@ -72,16 +78,20 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
             Block::default()
                 .borders(Borders::ALL)
                 .title(" Settings ")
-                .border_style(Style::default().fg(Color::Cyan)),
+                .border_style(Style::default().fg(c.border_active)),
         )
-        .highlight_style(Style::default().bg(Color::DarkGray));
+        .highlight_style(
+            Style::default()
+                .fg(c.highlight_fg)
+                .bg(c.highlight_bg)
+                .add_modifier(Modifier::BOLD),
+        );
 
     f.render_stateful_widget(list, chunks[0], &mut list_state);
 
-    // Single-line hint bar — no config path to avoid overflow
-    let hints = Paragraph::new(" ↑↓/jk: navigate  |  Enter: edit/toggle  |  s: save & apply  |  q: quit")
-        .style(Style::default().fg(Color::DarkGray))
-        .block(Block::default().borders(Borders::ALL));
+    let hints = Paragraph::new(" ↑↓/jk: navigate  |  Enter: edit/toggle  |  s: save & apply")
+        .style(Style::default().fg(c.text_muted))
+        .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(c.border_inactive)));
     f.render_widget(hints, chunks[1]);
 }
 
@@ -126,9 +136,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
         KeyCode::Char('e') | KeyCode::Enter => {
             match app.settings_edit.active_field {
                 0 | 1 | 2 => { app.settings_edit.editing = true; }
-                3 => {
-                    app.settings_edit.loop_video = !app.settings_edit.loop_video;
-                }
+                3 => { app.settings_edit.loop_video = !app.settings_edit.loop_video; }
                 4 => {
                     let enabling = !app.settings_edit.autostart;
                     if enabling {
@@ -149,6 +157,11 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
                         }
                     }
                     let _ = app.refresh_state();
+                }
+                5 => {
+                    // Cycle theme instantly — preview before saving
+                    app.theme = app.theme.next();
+                    app.set_message(format!("Theme: {}", app.theme.label()), false);
                 }
                 _ => {}
             }
@@ -181,6 +194,7 @@ fn save_and_apply(app: &mut App) -> Result<String> {
         loop_video: app.settings_edit.loop_video,
         volume,
         speed,
+        theme: app.theme,
     };
 
     new_config.save()?;
@@ -205,8 +219,8 @@ fn save_and_apply(app: &mut App) -> Result<String> {
     app.refresh_state()?;
 
     if applied > 0 {
-        Ok(format!("Settings saved & applied to {} monitor(s)", applied))
+        Ok(format!("Saved & applied to {} monitor(s) — Theme: {}", applied, app.theme.label()))
     } else {
-        Ok("Settings saved".to_string())
+        Ok(format!("Settings saved — Theme: {}", app.theme.label()))
     }
 }

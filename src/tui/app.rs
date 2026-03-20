@@ -7,6 +7,7 @@ use crate::core::{
     process::is_pid_alive,
     state::{Library, State},
 };
+use crate::tui::theme::{Theme, ThemeColors};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ActivePanel {
@@ -97,6 +98,8 @@ pub struct App {
 
     pub message: Option<String>,
     pub message_is_error: bool,
+
+    pub theme: Theme,
 }
 
 const VIDEO_EXTENSIONS: &[&str] = &["mp4", "mkv", "webm", "mov", "avi"];
@@ -110,6 +113,7 @@ impl App {
         let autostart = state.monitors.values().any(|e| e.autostart);
         let settings_edit = SettingsEdit::from_config(&config, autostart);
         let browser_files = Self::scan_files(&config.wallpaper_dir);
+        let theme = config.theme;
 
         Ok(Self {
             active_panel: ActivePanel::Browser,
@@ -126,7 +130,13 @@ impl App {
             settings_edit,
             message: None,
             message_is_error: false,
+            theme,
         })
+    }
+
+    /// Returns resolved color tokens for the current theme
+    pub fn colors(&self) -> ThemeColors {
+        self.theme.colors()
     }
 
     pub fn refresh_state(&mut self) -> Result<()> {
@@ -139,7 +149,6 @@ impl App {
             }
         }
         self.monitors = list_monitors().unwrap_or_default();
-        // Sync autostart toggle
         self.settings_edit.autostart = self.state.monitors.values().any(|e| e.autostart);
         Ok(())
     }
