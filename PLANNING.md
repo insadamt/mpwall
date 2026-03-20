@@ -48,15 +48,15 @@
 
 ## Phase 4 — TUI Layer
 
-- [ ] TASK-021: Implement TUI entry point `tui/mod.rs` — terminal setup, raw mode, event loop, crossterm backend for ratatui
-- [ ] TASK-022: Implement `tui/app.rs` — application state struct (active panel, selected file, monitor list, library, settings)
-- [ ] TASK-023: Implement `tui/ui.rs` — main layout rendering: split panels, tab bar, status bar, help footer
-- [ ] TASK-024: Implement `tui/panels/browser.rs` — scrollable file list from wallpaper directory, highlight active wallpaper, `/` filter mode, `Enter` to set
-- [ ] TASK-025: Implement `tui/panels/status.rs` — per-monitor status display, PID health, autostart indicator, 2-second poll interval
-- [ ] TASK-026: Implement `tui/panels/library.rs` — saved wallpapers list, add/remove/reorder, play playlist action, backed by `library.json`
-- [ ] TASK-027: Implement `tui/panels/settings.rs` — display and edit config values (wallpaper dir, mpvpaper flags), validate on save, write to `config.toml`
-- [ ] TASK-028: Implement global TUI keybindings — `q` quit, `Tab` switch panel, `?` help overlay, arrow keys navigation
-- [ ] TASK-029: Wire TUI panels to Core Layer — all actions delegate to `core/` functions, TUI never manages processes directly
+- [x] TASK-021: Implement TUI entry point `tui/mod.rs` — terminal setup, raw mode, event loop, crossterm backend for ratatui
+- [x] TASK-022: Implement `tui/app.rs` — application state struct (active panel, selected file, monitor list, library, settings)
+- [x] TASK-023: Implement `tui/ui.rs` — main layout rendering: split panels, tab bar, status bar, help footer
+- [x] TASK-024: Implement `tui/panels/browser.rs` — scrollable file list from wallpaper directory, highlight active wallpaper, `/` filter mode, `Enter` to set
+- [x] TASK-025: Implement `tui/panels/status.rs` — per-monitor status display, PID health, autostart indicator, 2-second poll interval
+- [x] TASK-026: Implement `tui/panels/library.rs` — saved wallpapers list, add/remove/reorder, play playlist action, backed by `library.json`
+- [x] TASK-027: Implement `tui/panels/settings.rs` — display and edit config values (wallpaper dir, mpvpaper flags), validate on save, write to `config.toml`
+- [x] TASK-028: Implement global TUI keybindings — `q` quit, `Tab` switch panel, `?` help overlay, arrow keys navigation
+- [x] TASK-029: Wire TUI panels to Core Layer — all actions delegate to `core/` functions, TUI never manages processes directly
 
 ---
 
