@@ -12,10 +12,6 @@ use crate::core::{
 const AUTOSTART_START: &str = "# mpwall start";
 const AUTOSTART_END: &str = "# mpwall end";
 
-// ---------------------------------------------------------------------------
-// set
-// ---------------------------------------------------------------------------
-
 pub fn cmd_set(file: &str, monitor: Option<&str>) -> Result<()> {
     let config = Config::load()?;
     let mut state = State::load()?;
@@ -45,10 +41,6 @@ pub fn cmd_set(file: &str, monitor: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// stop
-// ---------------------------------------------------------------------------
-
 pub fn cmd_stop(monitor: Option<&str>) -> Result<()> {
     let mut state = State::load()?;
     let monitors = resolve_monitors(monitor)?;
@@ -71,10 +63,6 @@ pub fn cmd_stop(monitor: Option<&str>) -> Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// enable
-// ---------------------------------------------------------------------------
-
 pub fn cmd_enable() -> Result<()> {
     let state = State::load()?;
     let active: Vec<(&String, &MonitorState)> = state
@@ -82,16 +70,13 @@ pub fn cmd_enable() -> Result<()> {
         .iter()
         .filter(|(_, e)| !e.wallpaper_path.is_empty())
         .collect();
-
     if active.is_empty() {
-        bail!("No active wallpaper found.\nTip: run `mpwall set <file>` first.");
+        bail!("No active wallpaper found. Run `mpwall set <file>` first.");
     }
-
     let hypr_conf = hyprland_conf_path()?;
     let content = fs::read_to_string(&hypr_conf)
         .with_context(|| format!("Failed to read {}", hypr_conf.display()))?;
     let content = remove_mpwall_block(&content);
-
     let mut block = format!("\n{}\n", AUTOSTART_START);
     for (mon, entry) in &active {
         block.push_str(&format!(
@@ -100,29 +85,18 @@ pub fn cmd_enable() -> Result<()> {
         ));
     }
     block.push_str(&format!("{}\n", AUTOSTART_END));
-
     fs::write(&hypr_conf, format!("{}{}", content, block))
         .with_context(|| format!("Failed to write {}", hypr_conf.display()))?;
-
     let mut state = State::load()?;
     for (mon, entry) in active {
-        state.set_monitor(
-            mon.clone(),
-            MonitorState { autostart: true, ..entry.clone() },
-        );
+        state.set_monitor(mon.clone(), MonitorState { autostart: true, ..entry.clone() });
     }
     state.save()?;
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// disable
-// ---------------------------------------------------------------------------
-
 pub fn cmd_disable() -> Result<()> {
-    if let Err(e) = cmd_stop(None) {
-        eprintln!("Warning: could not stop wallpaper: {}", e);
-    }
+    if let Err(_) = cmd_stop(None) {}
     let hypr_conf = hyprland_conf_path()?;
     let content = fs::read_to_string(&hypr_conf)
         .with_context(|| format!("Failed to read {}", hypr_conf.display()))?;
@@ -139,10 +113,6 @@ pub fn cmd_disable() -> Result<()> {
     Ok(())
 }
 
-// ---------------------------------------------------------------------------
-// status (CLI only)
-// ---------------------------------------------------------------------------
-
 pub fn cmd_status() -> Result<()> {
     let state = State::load()?;
     if state.monitors.is_empty() {
@@ -157,23 +127,19 @@ pub fn cmd_status() -> Result<()> {
             Some(pid) => ("stopped (stale PID)", format!("PID {} (dead)", pid)),
             None => ("stopped", "no PID".to_string()),
         };
-        let autostart_indicator = if entry.autostart { " [autostart]" } else { "" };
+        let autostart = if entry.autostart { " [autostart]" } else { "" };
         let wallpaper = Path::new(&entry.wallpaper_path)
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "(none)".to_string());
         println!("  Monitor : {}", mon);
-        println!("  Status  : {}{}", status_text, autostart_indicator);
+        println!("  Status  : {}{}", status_text, autostart);
         println!("  File    : {}", wallpaper);
         println!("  Process : {}", pid_text);
         println!("{}", "─".repeat(48));
     }
     Ok(())
 }
-
-// ---------------------------------------------------------------------------
-// list (CLI only)
-// ---------------------------------------------------------------------------
 
 pub fn cmd_list() -> Result<()> {
     let config = Config::load()?;
@@ -210,10 +176,6 @@ pub fn cmd_list() -> Result<()> {
     println!("  {} file(s) found", files.len());
     Ok(())
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 fn resolve_video_path(file: &str) -> Result<PathBuf> {
     let path = PathBuf::from(file);

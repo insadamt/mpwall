@@ -1,5 +1,5 @@
 use anyhow::Result;
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
@@ -79,23 +79,24 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
 
     f.render_stateful_widget(list, chunks[0], &mut list_state);
 
-    let filter_style = if app.browser_filter_mode {
-        Style::default().fg(Color::Yellow)
-    } else {
-        Style::default().fg(Color::DarkGray)
-    };
     let filter_hint = if app.browser_filter_mode {
         format!(" / Filter: {}_ (Esc to clear)", app.browser_filter)
     } else {
-        " Press / to filter".to_string()
+        " Press / to filter  |  Enter: set wallpaper  |  a: add to library".to_string()
     };
     let filter_bar = Paragraph::new(filter_hint)
-        .style(filter_style)
+        .style(Style::default().fg(Color::DarkGray))
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(filter_bar, chunks[1]);
 }
 
 pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
+    // Only handle key press events, ignore key repeat and release
+    // This prevents cmd_set firing dozens of times when Enter is held
+    if key.kind != KeyEventKind::Press {
+        return Ok(());
+    }
+
     if app.browser_filter_mode {
         match key.code {
             KeyCode::Esc => {
@@ -136,7 +137,6 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
             }
         }
         KeyCode::Enter => {
-            // Clone needed data out before any mutable borrow of app
             let entry_data = app
                 .filtered_files()
                 .get(app.browser_selected)
@@ -146,14 +146,13 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
                 match cmd_set(&path, None) {
                     Ok(_) => {
                         app.refresh_state()?;
-                        app.set_message(format!("Set wallpaper: {}", name), false);
+                        app.set_message(format!("Set: {}", name), false);
                     }
                     Err(e) => app.set_message(format!("Error: {}", e), true),
                 }
             }
         }
         KeyCode::Char('a') => {
-            // Clone needed data out before any mutable borrow of app
             let entry_data = app
                 .filtered_files()
                 .get(app.browser_selected)
@@ -162,7 +161,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
             if let Some((path, name)) = entry_data {
                 app.library.add(path);
                 match app.library.save() {
-                    Ok(_) => app.set_message(format!("Added to library: {}", name), false),
+                    Ok(_) => app.set_message(format!("Added: {}", name), false),
                     Err(e) => app.set_message(format!("Error saving library: {}", e), true),
                 }
             }
@@ -178,11 +177,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
 fn format_size(bytes: u64) -> String {
     const MB: u64 = 1024 * 1024;
     const GB: u64 = MB * 1024;
-    if bytes >= GB {
-        format!("{:.1}G", bytes as f64 / GB as f64)
-    } else if bytes >= MB {
-        format!("{:.1}M", bytes as f64 / MB as f64)
-    } else {
-        format!("{:.1}K", bytes as f64 / 1024.0)
-    }
+    if bytes >= GB { format!("{:.1}G", bytes as f64 / GB as f64) }
+    else if bytes >= MB { format!("{:.1}M", bytes as f64 / MB as f64) }
+    else { format!("{:.1}K", bytes as f64 / 1024.0) }
 }
