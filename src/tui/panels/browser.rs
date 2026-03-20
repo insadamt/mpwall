@@ -41,7 +41,10 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
             };
             ListItem::new(Line::from(vec![
                 Span::styled(format!("{} {}", indicator, entry.name), style),
-                Span::styled(format!("  ({})", size_str), Style::default().fg(Color::DarkGray)),
+                Span::styled(
+                    format!("  ({})", size_str),
+                    Style::default().fg(Color::DarkGray),
+                ),
             ]))
         })
         .collect();
@@ -54,9 +57,9 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
         " Browser ".to_string()
     };
 
-    let mut list_state = ListState::default();
     let visible_len = files.len();
     let selected = app.browser_selected.min(visible_len.saturating_sub(1));
+    let mut list_state = ListState::default();
     if !files.is_empty() {
         list_state.select(Some(selected));
     }
@@ -76,7 +79,6 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
 
     f.render_stateful_widget(list, chunks[0], &mut list_state);
 
-    // Filter bar
     let filter_style = if app.browser_filter_mode {
         Style::default().fg(Color::Yellow)
     } else {
@@ -134,27 +136,34 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
             }
         }
         KeyCode::Enter => {
-            let files = app.filtered_files();
-            if let Some(entry) = files.get(app.browser_selected) {
-                let path = entry.path.to_string_lossy().to_string();
+            // Clone needed data out before any mutable borrow of app
+            let entry_data = app
+                .filtered_files()
+                .get(app.browser_selected)
+                .map(|e| (e.path.to_string_lossy().to_string(), e.name.clone()));
+
+            if let Some((path, name)) = entry_data {
                 match cmd_set(&path, None) {
                     Ok(_) => {
                         app.refresh_state()?;
-                        app.set_message(format!("Set wallpaper: {}", entry.name), false);
+                        app.set_message(format!("Set wallpaper: {}", name), false);
                     }
                     Err(e) => app.set_message(format!("Error: {}", e), true),
                 }
             }
         }
         KeyCode::Char('a') => {
-            let files = app.filtered_files();
-            if let Some(entry) = files.get(app.browser_selected) {
-                let path = entry.path.to_string_lossy().to_string();
-                app.library.add(path.clone());
-                if let Err(e) = app.library.save() {
-                    app.set_message(format!("Error saving library: {}", e), true);
-                } else {
-                    app.set_message(format!("Added to library: {}", entry.name), false);
+            // Clone needed data out before any mutable borrow of app
+            let entry_data = app
+                .filtered_files()
+                .get(app.browser_selected)
+                .map(|e| (e.path.to_string_lossy().to_string(), e.name.clone()));
+
+            if let Some((path, name)) = entry_data {
+                app.library.add(path);
+                match app.library.save() {
+                    Ok(_) => app.set_message(format!("Added to library: {}", name), false),
+                    Err(e) => app.set_message(format!("Error saving library: {}", e), true),
                 }
             }
         }
