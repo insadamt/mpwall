@@ -19,7 +19,7 @@ const FIELD_COUNT: usize = 5;
 pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(0), Constraint::Length(5)])
+        .constraints([Constraint::Min(0), Constraint::Length(3)])
         .split(area);
 
     let se = &app.settings_edit;
@@ -38,12 +38,7 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
         .map(|(i, (label, value, text_editable))| {
             let is_selected = i == se.active_field;
             let is_editing = is_selected && se.editing && *text_editable;
-
-            let value_display = if is_editing {
-                format!("{}_", value)
-            } else {
-                value.clone()
-            };
+            let value_display = if is_editing { format!("{}_", value) } else { value.clone() };
 
             let label_style = if is_selected {
                 Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)
@@ -83,26 +78,14 @@ pub fn draw(f: &mut Frame, app: &mut App, area: Rect) {
 
     f.render_stateful_widget(list, chunks[0], &mut list_state);
 
-    let config_path = crate::core::config::config_path();
-    let hints = vec![
-        Line::from(vec![
-            Span::raw(" Config: "),
-            Span::styled(
-                config_path.to_string_lossy().to_string(),
-                Style::default().fg(Color::DarkGray),
-            ),
-        ]),
-        Line::from(" ↑↓/jk: navigate  |  Enter: edit/toggle  |  s: save & apply"),
-    ];
-    let info = Paragraph::new(hints)
+    // Single-line hint bar — no config path to avoid overflow
+    let hints = Paragraph::new(" ↑↓/jk: navigate  |  Enter: edit/toggle  |  s: save & apply  |  q: quit")
         .style(Style::default().fg(Color::DarkGray))
         .block(Block::default().borders(Borders::ALL));
-    f.render_widget(info, chunks[1]);
+    f.render_widget(hints, chunks[1]);
 }
 
 pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
-    let field_count = FIELD_COUNT;
-
     if app.settings_edit.editing {
         match key.code {
             KeyCode::Esc | KeyCode::Enter => {
@@ -136,7 +119,7 @@ pub fn handle_key(app: &mut App, key: KeyEvent) -> Result<()> {
             }
         }
         KeyCode::Down | KeyCode::Char('j') => {
-            if app.settings_edit.active_field < field_count - 1 {
+            if app.settings_edit.active_field < FIELD_COUNT - 1 {
                 app.settings_edit.active_field += 1;
             }
         }
