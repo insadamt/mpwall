@@ -75,11 +75,11 @@
 
 ## Phase 6 — Documentation
 
-- [ ] TASK-038: Write `documentation/README.md` — project overview, install instructions, quick start
-- [ ] TASK-039: Write `documentation/getting-started.md` — prerequisites, first run walkthrough
-- [ ] TASK-040: Write `documentation/architecture.md` — layer diagram, module responsibilities, data flow
-- [ ] TASK-041: Write `documentation/configuration.md` — all config.toml fields, defaults, examples
-- [ ] TASK-042: Write `documentation/development-workflow.md` — build, test, release process
-- [ ] TASK-043: Write `documentation/contributing.md` — contribution guidelines, code style, PR process
-- [ ] TASK-044: Write `documentation/features/` — one file per MVP feature (set, stop, enable, disable, status, list, tui, multi-monitor)
-- [ ] TASK-045: Update root `README.md` with final content (badges, install, usage, screenshot placeholder)
+- [x] TASK-038: Write `documentation/README.md` — project overview, install instructions, quick start
+- [x] TASK-039: Write `documentation/getting-started.md` — prerequisites, first run walkthrough
+- [x] TASK-040: Write `documentation/architecture.md` — layer diagram, module responsibilities, data flow
+- [x] TASK-041: Write `documentation/configuration.md` — all config.toml fields, defaults, examples
+- [x] TASK-042: Write `documentation/development-workflow.md` — build, test, release process
+- [x] TASK-043: Write `documentation/contributing.md` — contribution guidelines, code style, PR process
+- [x] TASK-044: Write `documentation/features/` — set, stop, enable/disable, status, list, tui, multi-monitor
+- [x] TASK-045: Update root `README.md` with final content (badges, install, usage, keybindings table)
