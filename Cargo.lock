@@ -355,11 +355,12 @@ dependencies = [
 
 [[package]]
 name = "mpwall"
-version = "1.0.0"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "clap",
  "crossterm",
+ "libc",
  "ratatui",
  "serde",
  "serde_json",
