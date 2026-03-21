@@ -1,4 +1,5 @@
 use anyhow::{bail, Context, Result};
+use std::os::unix::process::CommandExt;
 use std::path::Path;
 use std::process::{Child, Command, Stdio};
 
@@ -58,6 +59,15 @@ pub fn spawn_mpvpaper(
 
     cmd.stdout(Stdio::null());
     cmd.stderr(Stdio::null());
+
+    // Detach from terminal's process group so SIGHUP on terminal close
+    // does not kill the wallpaper process
+    unsafe {
+        cmd.pre_exec(|| {
+            libc::setsid();
+            Ok(())
+        });
+    }
 
     let child: Child = cmd
         .spawn()
