@@ -78,10 +78,12 @@ mpwall list
 | `Tab` / `Shift+Tab` | Switch panel |
 | `↑` / `↓` or `j` / `k` | Navigate list |
 | `Enter` | Set wallpaper / confirm / toggle |
+| `g` / `G` | Jump to first / last item |
 | `/` | Filter files (Browser) |
 | `Esc` | Cancel filter / close help |
 | `a` | Add to Library |
 | `d` | Remove from Library |
+| `r` | Refresh status (Status panel) |
 | `s` | Save settings |
 | `?` | Toggle help overlay |
 | `q` | Quit |
@@ -104,7 +106,7 @@ theme = "lamess_ui"
 
 | Theme | Description |
 |-------|-------------|
-| `lamess_ui` | Signal Yellow on pure black — Lamess UI brand (default) |
+| `lamess_ui` | Lamess Orange on dark — Lamess UI brand (default) |
 | `cyan` | Classic cyan terminal |
 | `monochrome` | Pure white/gray, no color |
 

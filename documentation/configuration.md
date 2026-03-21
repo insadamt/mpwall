@@ -14,6 +14,7 @@ This file is **optional**. mpwall works out of the box with no configuration. Al
 | `loop_video` | bool | `true` | Loop the video continuously. |
 | `volume` | integer (0–100) | `0` | Audio volume. `0` passes `--no-audio` to mpvpaper (muted). |
 | `speed` | float | `1.0` | Playback speed multiplier. |
+| `theme` | string | `"lamess_ui"` | UI color theme. Options: `lamess_ui`, `cyan`, `monochrome`. |
 
 ## Example Config
 
@@ -24,6 +25,7 @@ mpvpaper_flags = "--loop"
 loop_video = true
 volume = 0
 speed = 1.0
+theme = "lamess_ui"
 ```
 
 ## Editing Config

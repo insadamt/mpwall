@@ -15,9 +15,6 @@ pub struct Config {
     pub loop_video: bool,
     pub volume: u8,
     pub speed: f32,
-    /// Theme is stored as optional so missing key → LamessUi default.
-    /// We never write `theme = "lamess_ui"` from an old binary that didn't
-    /// know about themes, so #[serde(default)] + Option lets us detect that.
     #[serde(default = "default_theme")]
     pub theme: Theme,
 }
@@ -50,9 +47,6 @@ impl Config {
         let content = fs::read_to_string(&path)
             .with_context(|| format!("Failed to read config from {}", path.display()))?;
 
-        // Parse raw TOML to detect whether `theme` key was present at all.
-        // If absent (old config written before theme support), default to LamessUi
-        // and immediately persist so the key is present next run.
         let raw: toml::Value = toml::from_str(&content)
             .with_context(|| "Failed to parse config.toml")?;
 
@@ -64,7 +58,6 @@ impl Config {
 
         if !theme_present {
             cfg.theme = Theme::LamessUi;
-            // Persist so future loads don't repeat this migration
             let _ = cfg.save();
         }
 
@@ -89,8 +82,12 @@ impl Config {
         if self.loop_video {
             opts.push("--loop".to_string());
         }
-        opts.push("--no-audio".to_string());
-        opts.push(format!("--volume={}", self.volume));
+        // Only mute if volume is 0, otherwise pass the actual volume
+        if self.volume == 0 {
+            opts.push("--no-audio".to_string());
+        } else {
+            opts.push(format!("--volume={}", self.volume));
+        }
         opts.push(format!("--speed={}", self.speed));
         opts
     }
