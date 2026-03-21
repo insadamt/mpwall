@@ -5,7 +5,7 @@
 # mpwall
 
 **A terminal-native animated wallpaper manager for Hyprland.**  
-Built under the [Lamess UI](https://github.com/insadamt) design system.
+Built under the [Lamess UI](https://github.com/insadamt).
 
 <img src="public/images/Lamess Symbol Logo Transparent.png" alt="Lamess UI" width="70"/>
 
